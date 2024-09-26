@@ -104,10 +104,10 @@ echo "#!/bin/bash
 
 cd \$APPDIR
 desktopfile=~/.local/share/applications/$prg.desktop
-iconfile=~/.local/share/pixmaps/$prg.svg
+iconfile=~/.local/share/pixmaps/$prg.png
 
 test ! -e \"\$desktopfile\" && cp $prg.desktop ~/.local/share/applications/
-test ! -e \"\$iconfile\" && cp $prg.svg ~/.local/share/pixmaps/
+test ! -e \"\$iconfile\" && cp $prg.png ~/.local/share/pixmaps/
 
 if ! grep -q \"\$APPIMAGE\" \"\$desktopfile\"; then
     sed -i \"s:Exec=.*:Exec=\$APPIMAGE:\" \"\$desktopfile\"
