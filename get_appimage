@@ -1,0 +1,143 @@
+#!/bin/bash
+#
+# tarball2appimage by LinuxDicasPro
+#
+####################################
+
+
+destdir=~/__APPIMAGE__
+test -e "../_APPIMAGE" && destdir="../_APPIMAGE" # Opcional
+
+
+###########################################
+
+arch="x86_64"
+prg="ventoy"
+link="https://github.com/ventoy/Ventoy/tags"
+
+###########################################
+
+
+for i in {1..35}; { printf '─'; }; printf "\n"
+printf "Search latest version: "
+
+
+########
+
+version="$(grep -Eom1 "([0-9]+[.]){2}[0-9]+" <(links -dump "$link"))"
+
+########
+
+
+printf "\033[1;32m$version\033[m\n"
+for i in {1..35}; { printf '─'; }; printf "\n"
+
+
+test -z "$version" && {
+    echo "update script. version not found!"
+    exit 1
+}
+
+set -e
+
+test ! -e $destdir && mkdir -p $destdir
+cd $destdir
+
+
+test -e "$prg-$version-$arch.AppImage" && {
+    echo "appimage found!"
+    exit 0
+}
+
+
+test ! -e "appimagetool-x86_64.AppImage" && {
+    link_tool="https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage"
+    wget -c -q --show-progress "$link_tool"
+    chmod +x "appimagetool-x86_64.AppImage"
+}
+
+
+#########
+
+link_prg="https://github.com/ventoy/Ventoy/releases/download/v${version}/ventoy-${version}-linux.tar.gz"
+
+#########
+
+
+wget -c -q --show-progress "$link_prg"
+file_prg=${link_prg##*/}
+
+cwd=$PWD
+
+rm -rf "$prg.AppDir"
+mkdir -p "$prg.AppDir"
+cd "$prg.AppDir"
+
+echo -e "\nextract $file_prg ..."
+printf "$file_prg\t["
+tar -xf "$cwd/$file_prg" --checkpoint=50 --checkpoint-action=exec='printf ='
+echo -e "]\n"
+
+cp $prg-$version/WebUI/static/img/VentoyLogo.png ./ventoy.png
+
+
+####################################
+
+appimage_name="Ventoy"
+comment="Bootable USB Creator"
+categories="Utility;"
+
+####################################
+
+
+echo "[Desktop Entry]
+Name=$appimage_name
+GenericName=$appimage_name
+Comment=$comment
+Exec=$prg
+Icon=$prg
+Type=Application
+Terminal=false
+Categories=$categories" > "$prg.desktop"
+
+echo "#!/bin/bash
+
+cd \$APPDIR
+desktopfile=~/.local/share/applications/$prg.desktop
+iconfile=~/.local/share/pixmaps/$prg.svg
+
+test ! -e \"\$desktopfile\" && cp $prg.desktop ~/.local/share/applications/
+test ! -e \"\$iconfile\" && cp $prg.svg ~/.local/share/pixmaps/
+
+if ! grep -q \"\$APPIMAGE\" \"\$desktopfile\"; then
+    sed -i \"s:Exec=.*:Exec=\$APPIMAGE:\" \"\$desktopfile\"
+    sed -i \"s:Icon=.*:Icon=\$iconfile:\" \"\$desktopfile\"
+    /usr/bin/update-desktop-database -q || true
+    test -e usr/share/icons/hicolor/icon-theme.cache && {
+        test -x /usr/bin/gtk-update-icon-cache && /usr/bin/gtk-update-icon-cache ~/.local/share/pixmaps/ 2>&1 >&- || true
+    }
+fi
+
+if [ \"\$EUID\" -ne 0 ]; then
+  pkexec env DISPLAY=\$DISPLAY XAUTHORITY=\$XAUTHORITY \"\$APPIMAGE\" \"\$@\"
+  exit
+fi
+
+cd \$APPDIR/$prg-$version
+./VentoyGUI.$arch" > AppRun
+
+chmod +x AppRun
+cd ..
+
+printf "\n"; for ((i=0; i<$COLUMNS; i++)); { printf '─'; }; echo -e "\n"
+
+env ARCH=$arch ./appimagetool-x86_64.AppImage "$prg.AppDir"
+mv "${appimage_name// /_}-$arch.AppImage" "$prg-$version-$arch.AppImage"
+
+printf "\n"; for ((i=0; i<$COLUMNS; i++)); { printf '─'; }; echo -e "\n"
+
+rm -rf "$prg.AppDir"
+cd ..
+
+echo "appimage saved in $destdir/$prg-$version-$arch.AppImage"
+exit 0
